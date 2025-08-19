@@ -4,6 +4,7 @@ plugins {
 	id("org.springframework.boot") version "3.5.4"
 	id("io.spring.dependency-management") version "1.1.7"
 	kotlin("plugin.jpa") version "1.9.25"
+	id("com.github.node-gradle.node") version "5.0.0"
 }
 
 group = "com.sesame"
@@ -49,7 +50,32 @@ allOpen {
 	annotation("jakarta.persistence.MappedSuperclass")
 	annotation("jakarta.persistence.Embeddable")
 }
+node {
+	version.set("22.2.0")       // Node 버전
+	npmVersion.set("9.8.1")     // npm 버전
+	download.set(true)           // Node 설치 자동 다운로드
+	workDir.set(file("${project.buildDir}/nodejs"))
+	npmWorkDir.set(file("${project.buildDir}/npm"))
+}
 
 tasks.withType<Test> {
 	useJUnitPlatform()
 }
+
+tasks.register<com.github.gradle.node.npm.task.NpmTask>("buildFrontend") {
+	dependsOn("npmInstall")
+	workingDir.set(file("frontend"))  // Vue 프로젝트 경로
+	args.set(listOf("run", "build"))
+}
+
+tasks.register<Copy>("copyFrontend") {
+	dependsOn("buildFrontend")
+	from("frontend/dist")                                // 빌드 산출물
+	into("src/main/resources/static")                   // Spring Boot static 폴더
+}
+
+tasks.named("bootJar") {
+	dependsOn("copyFrontend")  // JAR 빌드시 Vue 빌드 자동 포함
+}
+
+
